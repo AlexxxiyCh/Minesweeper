@@ -1,0 +1,389 @@
+package minesweeper
+
+import kotlin.random.Random
+
+fun main() {
+    emptyField()
+    enterPosition()
+}
+
+val myField = mutableListOf<String>()       // field with mines
+val listForPrint = mutableListOf<String>()  // what you see on the screen
+val blocksInRow = 9                         // number of elements in a row
+val rows = 9                                // number of rows
+val totalBlocks = blocksInRow * rows        // total number of blocks on the field
+var emptyBlocks = blocksInRow * rows        // number of empty blocks on the field (numbers are not included)
+
+val setOfMines = mutableSetOf<Int>()        // set of indices of blocks with mines
+
+val listOfMines = mutableListOf<Int>()      // list of indices of blocks with mines
+val userListOfMines = mutableListOf<Int>()  // list of indices of blocks which are marked by user as with mines
+var numberOfMines = 0                       // total number of mines on the field
+var userMines = 0                           // number of mines as per user's marks
+
+val setOfEmptyBlocks = mutableSetOf<Int>()          // set wih indices used to show empty space without mines and numbers
+val setOfBlocksForCheck = mutableSetOf<Int>()       // set wih indices used to find empty space without mines and numbers
+val setOfBlocksWithNumbers = mutableSetOf<Int>()    // set wih indices used to show numbers around empty space
+
+val fullSetOfEmptyBlocks = mutableSetOf<Int>()          // set wih indices used to show empty space without mines and numbers
+val fullSetOfBlocksWithNumbers = mutableSetOf<Int>()    // set wih indices used to show numbers around empty space
+
+val usersSetOfMines = mutableSetOf<Int>()
+
+var enteredPosition = 0                       // first position which is entered by user
+val listOfNumbers = mutableListOf<Int>()    // list with numbers as per location of mines (0 - empty, 9 - mine)
+
+var action = ""                             // action of user (free or mine)
+
+fun emptyField() {
+    print("How many mines do you want on the field? ")
+    val numOfMines = readln()
+    try {
+        numberOfMines = numOfMines.toInt()
+    } catch (e: Exception) {
+        println("You entered incorrect number.\n")
+        emptyField()
+        return
+    }
+    if (numberOfMines >= totalBlocks) {
+        println("You want to put too many mines on the field. Choose another number!")
+        putMines()
+        return
+    }
+    myField.clear()
+    listForPrint.clear()
+    for (i in 1..totalBlocks) {
+        myField.add(".")
+    }
+    listForPrint.addAll(myField)
+    printField()
+}
+
+fun printField() {
+    var counter = 0
+    print(" │")
+    while (counter < blocksInRow) print(++counter)
+    print("│\n—│")
+    counter = 0
+    while (counter < blocksInRow) {
+        print("—")
+        counter++
+    }
+    println("│")
+    counter = 0
+    for (i in 1..rows) {
+        print("$i│")
+        print(listForPrint.subList(counter, counter + blocksInRow).joinToString(""))
+        counter += blocksInRow
+        println("│")
+    }
+    print("—│")
+    counter = 0
+    while (counter < blocksInRow) {
+        print("—")
+        counter++
+    }
+    println("│")
+}
+
+fun enterPosition() {
+    var selectedPositionByUser = 0
+    print("Set/unset mines marks or claim a cell as free: ")
+    val input = readln().split(" ").map { it }.toList()
+    println()
+    try {
+        input[0].toInt()
+        input[1].toInt()
+        if (input[0].toInt() > rows || input[1].toInt() > blocksInRow) {
+            println("You entered wrong position.\n")
+            enterPosition()
+            return
+        }
+        action = if (input[2].lowercase() == "free") {
+            "free"
+        } else if (input[2].lowercase() == "mine") {
+            "mine"
+        } else {
+            println("You entered wrong command ${input[2]}.\n")
+            enterPosition()
+            return
+        }
+        selectedPositionByUser = (input[0].toInt() - 1) * blocksInRow + (input[1].toInt() - 1)
+        enteredPosition = selectedPositionByUser
+        if (listOfMines.size == 0 && action == "free") putMines()
+
+
+    } catch (e: Exception) {
+        println("You entered wrong position.\n")
+        enterPosition()
+        return
+    }
+    //println(listOfMines)
+    checkResult()
+    //(emptyBlocks)
+
+    printField()
+
+    if (listOfMines.toSet() != usersSetOfMines) {
+        enterPosition()
+        return
+    }
+}
+
+fun checkResult() {
+    if (action == "free") {
+        if (listOfNumbers[enteredPosition] == 0) {
+            findEmptyBlocks(enteredPosition)
+            emptyBlocks -= setOfEmptyBlocks.size
+            emptyBlocks -= setOfBlocksWithNumbers.size
+        } else if (listOfNumbers[enteredPosition] == 9) {
+            for (i in listOfMines) {
+                listForPrint[i] = "X"
+            }
+            println("You stepped on a mine and failed!")
+            return
+        } else if (listOfNumbers[enteredPosition] in 1..8) {
+            listForPrint[enteredPosition] = listOfNumbers[enteredPosition].toString()
+        }
+    } else if (action == "mine") {
+        if (listForPrint[enteredPosition] == ".") {
+            listForPrint[enteredPosition] = "*"
+            usersSetOfMines.add(enteredPosition)
+        } else if (listForPrint[enteredPosition] == "*") {
+            if (fullSetOfEmptyBlocks.contains(enteredPosition)) {
+                listForPrint[enteredPosition] = "/"
+            } else if (fullSetOfBlocksWithNumbers.contains(enteredPosition)) {
+                listForPrint[enteredPosition] = listOfNumbers[enteredPosition].toString()
+            } else {
+                listForPrint[enteredPosition] = "."
+            }
+        }
+    }
+    if (listOfMines.toSet() == usersSetOfMines) {
+        println("Congratulations! You found all the mines!")
+        return
+    }
+}
+
+fun putMines() {
+    setOfMines.clear()
+    listOfMines.clear()
+
+    while (setOfMines.size != numberOfMines) {
+        setOfMines.add(Random.nextInt(0, totalBlocks))
+        setOfMines.remove(enteredPosition)
+    }
+    listOfMines.addAll(setOfMines)
+    for (i in 1..setOfMines.size) {
+        myField[setOfMines.first()] = "X"
+        setOfMines.remove(setOfMines.first())
+    }
+    showNumbers()
+}
+
+fun findEmptyBlocks(num: Int) {
+    setOfEmptyBlocks.clear()
+    setOfBlocksForCheck.clear()
+    setOfBlocksWithNumbers.clear()
+
+    if (listOfNumbers[num] == 0) {
+        setOfEmptyBlocks.add(num)
+        checkEmptySpace(num)
+        //println(setOfBlocksForCheck)
+
+        while (setOfBlocksForCheck.size > 0) {
+            checkEmptySpace(setOfBlocksForCheck.first())
+        }
+        for (i in setOfEmptyBlocks) {
+            if (listForPrint[i] == "*") emptyBlocks++
+            if (listForPrint[i] != "*") listForPrint[i] = "/"
+        }
+        fullSetOfEmptyBlocks.addAll(setOfEmptyBlocks)
+        for (i in setOfBlocksWithNumbers) {
+            if (listForPrint[i] == "*") emptyBlocks++
+            if (listForPrint[i] != "*") listForPrint[i] = listOfNumbers[i].toString()
+        }
+        fullSetOfBlocksWithNumbers.addAll(setOfBlocksWithNumbers)
+    }
+}
+
+fun checkEmptySpace(num: Int) {
+    //println("num = $num")
+    setOfEmptyBlocks.add(num)
+    val a1 = num - blocksInRow - 1
+    val a2 = num - blocksInRow
+    val a3 = num - blocksInRow + 1
+    val a4 = num - 1
+    val a5 = num + 1
+    val a6 = num + blocksInRow - 1
+    val a7 = num + blocksInRow
+    val a8 = num + blocksInRow + 1
+    if (num == 0) {
+        if (listOfNumbers[a5] == 0 && a5 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a5)
+        if (listOfNumbers[a7] == 0 && a7 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a7)
+        if (listOfNumbers[a8] == 0 && a8 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a8)
+        if (listOfNumbers[a5] in 1..8) setOfBlocksWithNumbers.add(a5)
+        if (listOfNumbers[a7] in 1..8) setOfBlocksWithNumbers.add(a7)
+        if (listOfNumbers[a8] in 1..8) setOfBlocksWithNumbers.add(a8)
+    } else if (num in 1..blocksInRow - 2) {
+        if (listOfNumbers[a5] == 0 && a5 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a5)
+        if (listOfNumbers[a8] == 0 && a8 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a8)
+        if (listOfNumbers[a7] == 0 && a7 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a7)
+        if (listOfNumbers[a6] == 0 && a6 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a6)
+        if (listOfNumbers[a4] == 0 && a4 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a4)
+        if (listOfNumbers[a5] in 1..8) setOfBlocksWithNumbers.add(a5)
+        if (listOfNumbers[a8] in 1..8) setOfBlocksWithNumbers.add(a8)
+        if (listOfNumbers[a7] in 1..8) setOfBlocksWithNumbers.add(a7)
+        if (listOfNumbers[a6] in 1..8) setOfBlocksWithNumbers.add(a6)
+        if (listOfNumbers[a4] in 1..8) setOfBlocksWithNumbers.add(a4)
+    } else if (num == blocksInRow - 1) {
+        if (listOfNumbers[a4] == 0 && a4 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a4)
+        if (listOfNumbers[a6] == 0 && a6 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a6)
+        if (listOfNumbers[a7] == 0 && a7 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a7)
+        if (listOfNumbers[a4] in 1..8) setOfBlocksWithNumbers.add(a4)
+        if (listOfNumbers[a6] in 1..8) setOfBlocksWithNumbers.add(a6)
+        if (listOfNumbers[a7] in 1..8) setOfBlocksWithNumbers.add(a7)
+    } else if ((num + 1) % blocksInRow == 0 && num > blocksInRow && num < listOfNumbers.lastIndex) {
+        if (listOfNumbers[a2] == 0 && a2 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a2)
+        if (listOfNumbers[a1] == 0 && a1 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a1)
+        if (listOfNumbers[a4] == 0 && a4 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a4)
+        if (listOfNumbers[a6] == 0 && a6 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a6)
+        if (listOfNumbers[a7] == 0 && a7 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a7)
+        if (listOfNumbers[a2] in 1..8) setOfBlocksWithNumbers.add(a2)
+        if (listOfNumbers[a1] in 1..8) setOfBlocksWithNumbers.add(a1)
+        if (listOfNumbers[a4] in 1..8) setOfBlocksWithNumbers.add(a4)
+        if (listOfNumbers[a6] in 1..8) setOfBlocksWithNumbers.add(a6)
+        if (listOfNumbers[a7] in 1..8) setOfBlocksWithNumbers.add(a7)
+    } else if (num == listOfNumbers.lastIndex) {
+        if (listOfNumbers[a4] == 0 && a4 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a4)
+        if (listOfNumbers[a1] == 0 && a1 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a1)
+        if (listOfNumbers[a2] == 0 && a2 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a2)
+        if (listOfNumbers[a4] in 1..8) setOfBlocksWithNumbers.add(a4)
+        if (listOfNumbers[a1] in 1..8) setOfBlocksWithNumbers.add(a1)
+        if (listOfNumbers[a2] in 1..8) setOfBlocksWithNumbers.add(a2)
+    } else if (num in (listOfNumbers.size - blocksInRow)..<listOfNumbers.lastIndex) {
+        if (listOfNumbers[a4] == 0 && a4 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a4)
+        if (listOfNumbers[a1] == 0 && a1 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a1)
+        if (listOfNumbers[a2] == 0 && a2 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a2)
+        if (listOfNumbers[a3] == 0 && a3 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a3)
+        if (listOfNumbers[a5] == 0 && a5 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a5)
+        if (listOfNumbers[a4] in 1..8) setOfBlocksWithNumbers.add(a4)
+        if (listOfNumbers[a1] in 1..8) setOfBlocksWithNumbers.add(a1)
+        if (listOfNumbers[a2] in 1..8) setOfBlocksWithNumbers.add(a2)
+        if (listOfNumbers[a3] in 1..8) setOfBlocksWithNumbers.add(a3)
+        if (listOfNumbers[a5] in 1..8) setOfBlocksWithNumbers.add(a5)
+    } else if (num == listOfNumbers.size - blocksInRow) {
+        if (listOfNumbers[a2] == 0 && a2 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a2)
+        if (listOfNumbers[a3] == 0 && a3 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a3)
+        if (listOfNumbers[a5] == 0 && a5 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a5)
+        if (listOfNumbers[a2] in 1..8) setOfBlocksWithNumbers.add(a2)
+        if (listOfNumbers[a3] in 1..8) setOfBlocksWithNumbers.add(a3)
+        if (listOfNumbers[a5] in 1..8) setOfBlocksWithNumbers.add(a5)
+    } else if (num % blocksInRow == 0 && num < listOfNumbers.size - blocksInRow) {
+        if (listOfNumbers[a2] == 0 && a2 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a2)
+        if (listOfNumbers[a3] == 0 && a3 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a3)
+        if (listOfNumbers[a5] == 0 && a5 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a5)
+        if (listOfNumbers[a8] == 0 && a8 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a8)
+        if (listOfNumbers[a7] == 0 && a7 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a7)
+        if (listOfNumbers[a2] in 1..8) setOfBlocksWithNumbers.add(a2)
+        if (listOfNumbers[a3] in 1..8) setOfBlocksWithNumbers.add(a3)
+        if (listOfNumbers[a5] in 1..8) setOfBlocksWithNumbers.add(a5)
+        if (listOfNumbers[a8] in 1..8) setOfBlocksWithNumbers.add(a8)
+        if (listOfNumbers[a7] in 1..8) setOfBlocksWithNumbers.add(a7)
+    } else {
+        if (listOfNumbers[a1] == 0 && a1 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a1)
+        if (listOfNumbers[a2] == 0 && a2 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a2)
+        if (listOfNumbers[a3] == 0 && a3 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a3)
+        if (listOfNumbers[a4] == 0 && a4 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a4)
+        if (listOfNumbers[a5] == 0 && a5 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a5)
+        if (listOfNumbers[a6] == 0 && a6 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a6)
+        if (listOfNumbers[a7] == 0 && a7 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a7)
+        if (listOfNumbers[a8] == 0 && a8 !in setOfEmptyBlocks) setOfBlocksForCheck.add(a8)
+        if (listOfNumbers[a1] in 1..8) setOfBlocksWithNumbers.add(a1)
+        if (listOfNumbers[a2] in 1..8) setOfBlocksWithNumbers.add(a2)
+        if (listOfNumbers[a3] in 1..8) setOfBlocksWithNumbers.add(a3)
+        if (listOfNumbers[a4] in 1..8) setOfBlocksWithNumbers.add(a4)
+        if (listOfNumbers[a5] in 1..8) setOfBlocksWithNumbers.add(a5)
+        if (listOfNumbers[a6] in 1..8) setOfBlocksWithNumbers.add(a6)
+        if (listOfNumbers[a7] in 1..8) setOfBlocksWithNumbers.add(a7)
+        if (listOfNumbers[a8] in 1..8) setOfBlocksWithNumbers.add(a8)
+    }
+    setOfBlocksForCheck.remove(num)
+}
+
+
+// Create list with numbers
+
+fun showNumbers() {
+    val newList = listOfMines.sorted().toMutableList()
+    listOfNumbers.clear()
+    for (i in 0..myField.lastIndex) {
+        if (myField[i] == "X") listOfNumbers.add(9) else listOfNumbers.add(0)
+    }
+    for (i in newList) {
+        setNumber(i)
+    }
+}
+
+fun setNumber(num: Int) {
+
+    val a1 = num - blocksInRow - 1
+    val a2 = num - blocksInRow
+    val a3 = num - blocksInRow + 1
+    val a4 = num - 1
+    val a5 = num + 1
+    val a6 = num + blocksInRow - 1
+    val a7 = num + blocksInRow
+    val a8 = num + blocksInRow + 1
+
+    if (num == 0) {
+        if (listOfNumbers[a5] != 9) listOfNumbers[a5] += 1
+        if (listOfNumbers[a7] != 9) listOfNumbers[a7] += 1
+        if (listOfNumbers[a8] != 9) listOfNumbers[a8] += 1
+    } else if (num == blocksInRow - 1) {
+        if (listOfNumbers[a4] != 9) listOfNumbers[a4] += 1
+        if (listOfNumbers[a6] != 9) listOfNumbers[a6] += 1
+        if (listOfNumbers[a7] != 9) listOfNumbers[a7] += 1
+    } else if (num == listOfNumbers.lastIndex) {
+        if (listOfNumbers[a4] != 9) listOfNumbers[a4] += 1
+        if (listOfNumbers[a1] != 9) listOfNumbers[a1] += 1
+        if (listOfNumbers[a2] != 9) listOfNumbers[a2] += 1
+    } else if (num == listOfNumbers.size - blocksInRow) {
+        if (listOfNumbers[a2] != 9) listOfNumbers[a2] += 1
+        if (listOfNumbers[a3] != 9) listOfNumbers[a3] += 1
+        if (listOfNumbers[a5] != 9) listOfNumbers[a5] += 1
+    } else if (num % blocksInRow == 0 && num > 0 && num < listOfNumbers.size - blocksInRow) {
+        if (listOfNumbers[a2] != 9) listOfNumbers[a2] += 1
+        if (listOfNumbers[a3] != 9) listOfNumbers[a3] += 1
+        if (listOfNumbers[a5] != 9) listOfNumbers[a5] += 1
+        if (listOfNumbers[a8] != 9) listOfNumbers[a8] += 1
+        if (listOfNumbers[a7] != 9) listOfNumbers[a7] += 1
+    } else if (num in 1..blocksInRow - 2) {
+        if (listOfNumbers[a5] != 9) listOfNumbers[a5] += 1
+        if (listOfNumbers[a8] != 9) listOfNumbers[a8] += 1
+        if (listOfNumbers[a7] != 9) listOfNumbers[a7] += 1
+        if (listOfNumbers[a6] != 9) listOfNumbers[a6] += 1
+        if (listOfNumbers[a4] != 9) listOfNumbers[a4] += 1
+    } else if ((num + 1) % blocksInRow == 0 && num > blocksInRow && num < listOfNumbers.lastIndex) {
+        if (listOfNumbers[a2] != 9) listOfNumbers[a2] += 1
+        if (listOfNumbers[a1] != 9) listOfNumbers[a1] += 1
+        if (listOfNumbers[a4] != 9) listOfNumbers[a4] += 1
+        if (listOfNumbers[a6] != 9) listOfNumbers[a6] += 1
+        if (listOfNumbers[a7] != 9) listOfNumbers[a7] += 1
+    } else if (num in listOfNumbers.size - blocksInRow..<listOfNumbers.lastIndex) {
+        if (listOfNumbers[a4] != 9) listOfNumbers[a4] += 1
+        if (listOfNumbers[a1] != 9) listOfNumbers[a1] += 1
+        if (listOfNumbers[a2] != 9) listOfNumbers[a2] += 1
+        if (listOfNumbers[a3] != 9) listOfNumbers[a3] += 1
+        if (listOfNumbers[a5] != 9) listOfNumbers[a5] += 1
+    } else {
+        if (listOfNumbers[a1] != 9) listOfNumbers[a1] += 1
+        if (listOfNumbers[a2] != 9) listOfNumbers[a2] += 1
+        if (listOfNumbers[a3] != 9) listOfNumbers[a3] += 1
+        if (listOfNumbers[a4] != 9) listOfNumbers[a4] += 1
+        if (listOfNumbers[a5] != 9) listOfNumbers[a5] += 1
+        if (listOfNumbers[a6] != 9) listOfNumbers[a6] += 1
+        if (listOfNumbers[a7] != 9) listOfNumbers[a7] += 1
+        if (listOfNumbers[a8] != 9) listOfNumbers[a8] += 1
+    }
+}
